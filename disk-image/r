@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+exe=${1:-EXCODE}
+
+# use pypy iso python if it's available
+py=`type -P pypy || echo python`
+
+$py interp.py $exe

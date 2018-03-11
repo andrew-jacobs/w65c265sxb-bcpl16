@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+if [ $# == 0 ]; then set -- -h; fi
+
+# parse options
+
+while getopts co:h opt; do
+    case "$opt" in
+        c)    sep=1 ;;
+        o)    out="$OPTARG" ;;
+        [h?]) echo >&2 "Usage: $0 [-c] [-o outfile] file.b ..."
+              exit 1 ;;
+    esac
+done
+shift $(($OPTIND-1))
+
+# use pypy iso python if it's available
+py=`type -P pypy || echo python`
+
+objs=()
+
+for src in "$@"; do
+    $py interp.py pass1 <$src || echo "compilation error in $src"
+    $py interp.py pass2 <OCODE || echo "codegen error in $src"
+    mv INTCODE ${src%.b}.i
+    rm OCODE
+    objs=(${objs[@]} ${src%.b}.i)
+done
+
+if [ -z "$sep" ]; then
+    cat ${objs[@]} run-time.i | \
+        python assem.py $out || echo "assembly error in $src"
+    rm ${objs[@]}
+fi

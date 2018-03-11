@@ -1,0 +1,280 @@
+
+Portable 65xx Assembler [17.12]
+
+                             ;===============================================================================
+                             ;-------------------------------------------------------------------------------
+                             
+                             
+                             
+                                             .65816
+                             
+                             short_a         .macro
+                                             .longa  off
+                                             sep     #$20
+                                             .endm
+                             
+                             
+                             long_a          .macro
+                                             .longa  on
+                                             rep     #$20
+                                             .endm
+                             
+         00C00000          = MEML            .equ    $c00000
+         00C10000          = MEMH            .equ    $c10000
+                             
+                             
+                                             .page0
+                                             .org    $00
+                             
+00:0000  0000              : ACCA            .space  2
+00:0002  0000              : ACCB            .space  2
+                             
+00:0004  0000              : G               .space  2
+00:0006  0000              : C               .space  2
+00:0008  0000              : P               .space  2
+                             
+00:000A  0000              : W               .space  2
+                             ;D              .space  2
+                             
+                             
+                                             .code
+                                             .org    $0400
+                             
+                             
+                             ;===============================================================================
+                             
+                             ;        15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
+                             ;       +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+                             ;   +0  |  Opcode   | I | P | G | X |       Operand (when X = 0)        |
+                             ;       +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+                             ;   +1  |                     Operand (when X = 1)                      |
+                             ;       +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+                             
+                                             .longa  on
+                                             .longi  on
+                             
+00:0400  6400              :                 stz     ACCA
+00:0402  6402              :                 stz     ACCB
+
+Portable 65xx Assembler [17.12]
+
+                             Step:
+00:0404  A606              :                 ldx     C               ; Fetch the next instruction
+                                             short_a
+                           +                 .longa  off
+00:0406  E220              +                 sep     #$20
+00:0408  BF0000C1          :                 lda     >MEMH,x
+00:040C  EB                :                 xba
+00:040D  BF0000C0          :                 lda     >MEML,x
+                                             long_a
+                           +                 .longa  on
+00:0411  C220              +                 rep     #$20
+00:0413  E8                :                 inx
+00:0414  850A              :                 sta     W
+                             
+00:0416  890002            :                 bit     #$0200          ; Short operand?
+00:0419  D006              :                 if eq                   ; Yes, extract from instruction
+00:041B  29FF01            :                  and    #$01ff
+00:041E  A8                :                  tay
+00:041F  800F              :                 else
+                                              short_a                ; No, fetch from next word
+                           +                 .longa  off
+00:0421  E220              +                 sep     #$20
+00:0423  BF0000C1          :                  lda    >MEMH,x
+00:0427  EB                :                  xba
+00:0428  BF0000C0          :                  lda    >MEML,x
+                                              long_a
+                           +                 .longa  on
+00:042C  C220              +                 rep     #$20
+00:042E  E8                :                  inx
+00:042F  A8                :                  tay                    ; Save in Y
+                                             endif
+00:0430  8606              :                 stx     C               ; Update program counter
+                             
+00:0432  A50A              :                 lda     W
+00:0434  890008            :                 bit     #$0800          ; Relative to stack?
+00:0437  F007              :                 if ne
+00:0439  18                :                  clc
+00:043A  98                :                  tya
+00:043B  6508              :                  adc    P
+00:043D  A8                :                  tay
+00:043E  800A              :                 else
+00:0440  890004            :                  bit    #$0400          ; Relative to global vector?
+00:0443  F005              :                  if ne
+00:0445  18                :                   clc
+00:0446  98                :                   tya
+00:0447  6504              :                   adc   G
+00:0449  A8                :                   tay
+                                              endif
+                                             endif
+                             
+00:044A  A50A              :                 lda     W
+00:044C  890010            :                 bit     #$1000          ; Indirect memory address?
+00:044F  F00F              :                 if ne
+00:0451  BB                :                  tyx                    ; Yes, look up address
+
+Portable 65xx Assembler [17.12]
+
+                                              short_a
+                           +                 .longa  off
+00:0452  E220              +                 sep     #$20
+00:0454  BF0000C1          :                  lda    >MEMH,x
+00:0458  EB                :                  xba
+00:0459  BF0000C0          :                  lda    >MEML,x
+                                              long_a
+                           +                 .longa  on
+00:045D  C220              +                 rep     #$20
+00:045F  A8                :                  tay                    ; And save in Y
+                                             endif
+                             
+00:0460  A50A              :                 lda     W               ; Extract opcode
+00:0462  2900E0            :                 and     #$e000
+00:0465  EB                :                 xba
+00:0466  4A                :                 lsr     a
+00:0467  4A                :                 lsr     a
+00:0468  4A                :                 lsr     a
+00:0469  4A                :                 lsr     a
+00:046A  AA                :                 tax
+00:046B  7C6E04            :                 jmp     (Opcode,x)
+                             Opcode:
+00:046E  7E04              :                 .word   OpcodeL
+00:0470  9504              :                 .word   OpcodeS
+00:0472  A804              :                 .word   OpcodeA
+00:0474  B104              :                 .word   OpcodeJ
+00:0476  B604              :                 .word   OpcodeT
+00:0478  BF04              :                 .word   OpcodeF
+00:047A  C804              :                 .word   OpcodeK
+00:047C  CB04              :                 .word   OpcodeX
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Memory Load
+                             
+                             OpcodeL:
+00:047E  A500              :                 lda     ACCA            ; Transfer A into B
+00:0480  8502              :                 sta     ACCB
+00:0482  BB                :                 tyx                     ; Load from M[D]
+                                             short_a
+                           +                 .longa  off
+00:0483  E220              +                 sep     #$20
+00:0485  BF0000C1          :                 lda     >MEMH,x
+00:0489  EB                :                 xba
+00:048A  BF0000C0          :                 lda     >MEML,x
+                                             long_a
+                           +                 .longa  on
+00:048E  C220              +                 rep     #$20
+00:0490  8500              :                 sta     ACCA            ; Save in A
+00:0492  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Memory Store
+                             
+                             OpcodeS:
+
+Portable 65xx Assembler [17.12]
+
+00:0495  A500              :                 lda     ACCA
+00:0497  BB                :                 tyx
+                                             short_a
+                           +                 .longa  off
+00:0498  E220              +                 sep     #$20
+00:049A  9F0000C0          :                 sta     >MEML,x
+00:049E  EB                :                 xba
+00:049F  9F0000C1          :                 sta     >MEMH,x
+                                             long_a
+                           +                 .longa  on
+00:04A3  C220              +                 rep     #$20
+00:04A5  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Addition
+                             
+                             OpcodeA:
+00:04A8  18                :                 clc
+00:04A9  98                :                 tya
+00:04AA  6500              :                 adc     ACCA
+00:04AC  8500              :                 sta     ACCA
+00:04AE  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Unconditional Jump
+                             
+                             OpcodeJ:
+00:04B1  8406              :                 sty     C
+00:04B3  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Jump if True
+                             
+                             OpcodeT:
+00:04B6  A500              :                 lda     ACCA
+00:04B8  F002              :                 if ne
+00:04BA  8406              :                  sty    C
+                                             endif
+00:04BC  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Jump if False
+                             
+                             OpcodeF:
+00:04BF  A500              :                 lda     ACCA
+00:04C1  D002              :                 if eq
+00:04C3  8406              :                  sty    C
+                                             endif
+00:04C5  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Call
+                             
+                             OpcodeK:
+
+Portable 65xx Assembler [17.12]
+
+                             
+00:04C8  4C0404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Execute Function
+                             
+                             OpcodeX:
+                             
+00:04CB  7CCE04            :                 jmp     (Function,x)
+                             Function:
+00:04CE  D004              :                 .word   Function0
+                                             
+                                             
+                             Function0:
+                             
+                             
+                                             .end
+
+
+Portable 65xx Assembler [17.12]
+
+Symbol Table
+
+ACCA                             00000000  | ACCA                             00000000 
+ACCB                             00000002  | __6501__                         00000000 
+C                                00000006  | __6502__                         00000000 
+Function                         000004CE  | __65832__                        00000000 
+Function0                        000004D0  | __65C02__                        00000000 
+G                                00000004  | __65SC02__                       00000000 
+MEMH                             00C10000  | __65816__                        00000001 
+MEML                             00C00000  | ACCB                             00000002 
+Opcode                           0000046E  | G                                00000004 
+OpcodeA                          000004A8  | C                                00000006 
+OpcodeF                          000004BF  | P                                00000008 
+OpcodeJ                          000004B1  | W                                0000000A 
+OpcodeK                          000004C8  | Step                             00000404 
+OpcodeL                          0000047E  | Opcode                           0000046E 
+OpcodeS                          00000495  | OpcodeL                          0000047E 
+OpcodeT                          000004B6  | OpcodeS                          00000495 
+OpcodeX                          000004CB  | OpcodeA                          000004A8 
+P                                00000008  | OpcodeJ                          000004B1 
+Step                             00000404  | OpcodeT                          000004B6 
+W                                0000000A  | OpcodeF                          000004BF 
+__6501__                         00000000  | OpcodeK                          000004C8 
+__6502__                         00000000  | OpcodeX                          000004CB 
+__65816__                        00000001  | Function                         000004CE 
+__65832__                        00000000  | Function0                        000004D0 
+__65C02__                        00000000  | MEML                             00C00000 
+__65SC02__                       00000000  | MEMH                             00C10000 
