@@ -5,4 +5,5 @@ Global Symbol Map
 Sections:
 
 .page0           : 00000000 - 0000000B in bcpl.obj
-.code            : 00000400 - 000004CF in bcpl.obj
+.bss             : 00000200 - 000002FF in bcpl.obj
+.code            : 00000400 - 0000063F in bcpl.obj
