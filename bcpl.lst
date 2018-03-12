@@ -3,13 +3,13 @@ Portable 65xx Assembler [17.12]
 
                              ;===============================================================================
                              ;
-                             ; `7MM"""Yp,   .g8"""bgd `7MM"""Mq.`7MMF'      
-                             ;   MM    Yb .dP'     `M   MM   `MM. MM        
-                             ;   MM    dP dM'       `   MM   ,M9  MM        
-                             ;   MM"""bg. MM            MMmmdM9   MM        
-                             ;   MM    `Y MM.           MM        MM      , 
-                             ;   MM    ,9 `Mb.     ,'   MM        MM     ,M 
-                             ; .JMMmmmd9    `"bmmmd'  .JMML.    .JMMmmmmMMM 
+                             ; `7MM"""Yp,   .g8"""bgd `7MM"""Mq.`7MMF'
+                             ;   MM    Yb .dP'     `M   MM   `MM. MM
+                             ;   MM    dP dM'       `   MM   ,M9  MM
+                             ;   MM"""bg. MM            MMmmdM9   MM
+                             ;   MM    `Y MM.           MM        MM      ,
+                             ;   MM    ,9 `Mb.     ,'   MM        MM     ,M
+                             ; .JMMmmmd9    `"bmmmd'  .JMML.    .JMMmmmmMMM
                              ;
                              ; BCPL for the WDC W65C265SXB
                              ;-------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ Portable 65xx Assembler [17.12]
                              ; See here for details:
                              ;
                              ;       https://creativecommons.org/licenses/by-nc-sa/4.0/
-                             ;                                            
+                             ;
                              ;-------------------------------------------------------------------------------
                              
                                              .65816
@@ -98,7 +98,9 @@ Portable 65xx Assembler [17.12]
 00:0008  0000              : P               .space  2
                              
 00:000A  0000              : W               .space  2
-                             ;D              .space  2
+                             
+00:000C  0000              : FI              .space  2
+00:000E  0000              : FO              .space  2
                              
                              ;-------------------------------------------------------------------------------
                              
@@ -110,19 +112,37 @@ Portable 65xx Assembler [17.12]
                              ;===============================================================================
                              ;-------------------------------------------------------------------------------
                              
-                                             .code
-                                             .org    $0400
 
 Portable 65xx Assembler [17.12]
 
+                                             .code
+                                             .org    $0400
+                             
+                                             .longa  off
+                                             .longi  off
+                             RESET:
+00:0400  78                :                 sei
+00:0401  38                :                 sec
+00:0402  FB                :                 xce
+                             
+00:0403  A2FF              :                 ldx     #$ff
+00:0405  9A                :                 txs
                              
                              ; Reset Hardware
+                             
+00:0406  18                :                 clc
+00:0407  FB                :                 xce
+                                             long_i
+                           +                 .longa  on
+00:0408  C210              +                 rep     #$10
+                             
                              
                              ; Mount Disk
                              
                              ; Read Command
                              
                              ; Load Target
+                             
                              
                              ;===============================================================================
                              ; INTCODE Interpreter
@@ -138,281 +158,286 @@ Portable 65xx Assembler [17.12]
                                              .longa  on
                                              .longi  on
                              
-00:0400  6400              :                 stz     ACCA
-00:0402  6402              :                 stz     ACCB
+00:040A  6400              :                 stz     ACCA
+00:040C  6402              :                 stz     ACCB
+                             
+00:040E  640E              :                 stz     FO
+00:0410  640E              :                 stz     FO
+00:0412  E60E              :                 inc     FO
+                             
                              Step:
-00:0404  A606              :                 ldx     C               ; Fetch the next instruction
+00:0414  A606              :                 ldx     C               ; Fetch the next instruction
                                              short_a
                            +                 .longa  off
-00:0406  E220              +                 sep     #$20
-00:0408  BF0000C1          :                 lda     >MEMH,x
-00:040C  EB                :                 xba
-00:040D  BF0000C0          :                 lda     >MEML,x
-                                             long_a
-                           +                 .longa  on
-00:0411  C220              +                 rep     #$20
-00:0413  E8                :                 inx
-00:0414  850A              :                 sta     W
-                             
-00:0416  890002            :                 bit     #$0200          ; Short operand?
-00:0419  D006              :                 if eq                   ; Yes, extract from instruction
-00:041B  29FF01            :                  and    #$01ff
-00:041E  A8                :                  tay
-00:041F  800F              :                 else
-                                              short_a                ; No, fetch from next word
-                           +                 .longa  off
-00:0421  E220              +                 sep     #$20
-00:0423  BF0000C1          :                  lda    >MEMH,x
-00:0427  EB                :                  xba
-00:0428  BF0000C0          :                  lda    >MEML,x
-                                              long_a
-                           +                 .longa  on
-00:042C  C220              +                 rep     #$20
-00:042E  E8                :                  inx
 
 Portable 65xx Assembler [17.12]
 
-00:042F  A8                :                  tay                    ; Save in Y
-                                             endif
-00:0430  8606              :                 stx     C               ; Update program counter
+00:0416  E220              +                 sep     #$20
+00:0418  BF0000C1          :                 lda     >MEMH,x
+00:041C  EB                :                 xba
+00:041D  BF0000C0          :                 lda     >MEML,x
+                                             long_a
+                           +                 .longa  on
+00:0421  C220              +                 rep     #$20
+00:0423  E8                :                 inx
+00:0424  850A              :                 sta     W
                              
-00:0432  A50A              :                 lda     W
-00:0434  890008            :                 bit     #$0800          ; Relative to stack?
-00:0437  F007              :                 if ne
-00:0439  18                :                  clc
-00:043A  98                :                  tya
-00:043B  6508              :                  adc    P
-00:043D  A8                :                  tay
-00:043E  800A              :                 else
-00:0440  890004            :                  bit    #$0400          ; Relative to global vector?
-00:0443  F005              :                  if ne
-00:0445  18                :                   clc
-00:0446  98                :                   tya
-00:0447  6504              :                   adc   G
-00:0449  A8                :                   tay
+00:0426  890002            :                 bit     #$0200          ; Short operand?
+00:0429  D006              :                 if eq                   ; Yes, extract from instruction
+00:042B  29FF01            :                  and    #$01ff
+00:042E  A8                :                  tay
+00:042F  800F              :                 else
+                                              short_a                ; No, fetch from next word
+                           +                 .longa  off
+00:0431  E220              +                 sep     #$20
+00:0433  BF0000C1          :                  lda    >MEMH,x
+00:0437  EB                :                  xba
+00:0438  BF0000C0          :                  lda    >MEML,x
+                                              long_a
+                           +                 .longa  on
+00:043C  C220              +                 rep     #$20
+00:043E  E8                :                  inx
+00:043F  A8                :                  tay                    ; Save in Y
+                                             endif
+00:0440  8606              :                 stx     C               ; Update program counter
+                             
+00:0442  A50A              :                 lda     W
+00:0444  890008            :                 bit     #$0800          ; Relative to stack?
+00:0447  F007              :                 if ne
+00:0449  18                :                  clc
+00:044A  98                :                  tya
+00:044B  6508              :                  adc    P
+00:044D  A8                :                  tay
+00:044E  800A              :                 else
+00:0450  890004            :                  bit    #$0400          ; Relative to global vector?
+00:0453  F005              :                  if ne
+00:0455  18                :                   clc
+00:0456  98                :                   tya
+00:0457  6504              :                   adc   G
+00:0459  A8                :                   tay
                                               endif
                                              endif
                              
-00:044A  A50A              :                 lda     W
-00:044C  890010            :                 bit     #$1000          ; Indirect memory address?
-00:044F  F00F              :                 if ne
-00:0451  BB                :                  tyx                    ; Yes, look up address
+00:045A  A50A              :                 lda     W
+00:045C  890010            :                 bit     #$1000          ; Indirect memory address?
+00:045F  F00F              :                 if ne
+00:0461  BB                :                  tyx                    ; Yes, look up address
                                               short_a
                            +                 .longa  off
-00:0452  E220              +                 sep     #$20
-00:0454  BF0000C1          :                  lda    >MEMH,x
-00:0458  EB                :                  xba
-00:0459  BF0000C0          :                  lda    >MEML,x
-                                              long_a
-                           +                 .longa  on
-00:045D  C220              +                 rep     #$20
-00:045F  A8                :                  tay                    ; And save in Y
-                                             endif
-                             
-00:0460  A50A              :                 lda     W               ; Extract opcode
-00:0462  2900E0            :                 and     #$e000
-00:0465  EB                :                 xba
-00:0466  4A                :                 lsr     a
-00:0467  4A                :                 lsr     a
-00:0468  4A                :                 lsr     a
-00:0469  4A                :                 lsr     a
-00:046A  AA                :                 tax
-00:046B  7C6E04            :                 jmp     (Opcode,x)
-                             Opcode:
-00:046E  7E04              :                 .word   OpcodeL
-00:0470  9504              :                 .word   OpcodeS
-00:0472  A804              :                 .word   OpcodeA
-00:0474  B104              :                 .word   OpcodeJ
-00:0476  B604              :                 .word   OpcodeT
-00:0478  BF04              :                 .word   OpcodeF
-00:047A  C804              :                 .word   OpcodeK
+00:0462  E220              +                 sep     #$20
+00:0464  BF0000C1          :                  lda    >MEMH,x
 
 Portable 65xx Assembler [17.12]
 
-00:047C  CB04              :                 .word   OpcodeX
+00:0468  EB                :                  xba
+00:0469  BF0000C0          :                  lda    >MEML,x
+                                              long_a
+                           +                 .longa  on
+00:046D  C220              +                 rep     #$20
+00:046F  A8                :                  tay                    ; And save in Y
+                                             endif
+                             
+00:0470  A50A              :                 lda     W               ; Extract opcode
+00:0472  2900E0            :                 and     #$e000
+00:0475  EB                :                 xba
+00:0476  4A                :                 lsr     a
+00:0477  4A                :                 lsr     a
+00:0478  4A                :                 lsr     a
+00:0479  4A                :                 lsr     a
+00:047A  AA                :                 tax
+00:047B  7C7E04            :                 jmp     (Opcode,x)
+                             Opcode:
+00:047E  8E04              :                 .word   OpcodeL
+00:0480  A504              :                 .word   OpcodeS
+00:0482  B804              :                 .word   OpcodeA
+00:0484  C104              :                 .word   OpcodeJ
+00:0486  C604              :                 .word   OpcodeT
+00:0488  CF04              :                 .word   OpcodeF
+00:048A  D804              :                 .word   OpcodeK
+00:048C  DB04              :                 .word   OpcodeX
                              
                              ;-------------------------------------------------------------------------------
                              ; Memory Load
                              
                              OpcodeL:
-00:047E  A500              :                 lda     ACCA            ; Transfer A into B
-00:0480  8502              :                 sta     ACCB
-00:0482  BB                :                 tyx                     ; Load from M[D]
+00:048E  A500              :                 lda     ACCA            ; Transfer A into B
+00:0490  8502              :                 sta     ACCB
+00:0492  BB                :                 tyx                     ; Load from M[D]
                                              short_a
                            +                 .longa  off
-00:0483  E220              +                 sep     #$20
-00:0485  BF0000C1          :                 lda     >MEMH,x
-00:0489  EB                :                 xba
-00:048A  BF0000C0          :                 lda     >MEML,x
+00:0493  E220              +                 sep     #$20
+00:0495  BF0000C1          :                 lda     >MEMH,x
+00:0499  EB                :                 xba
+00:049A  BF0000C0          :                 lda     >MEML,x
                                              long_a
                            +                 .longa  on
-00:048E  C220              +                 rep     #$20
-00:0490  8500              :                 sta     ACCA            ; Save in A
-00:0492  4C0404            :                 jmp     Step
+00:049E  C220              +                 rep     #$20
+00:04A0  8500              :                 sta     ACCA            ; Save in A
+00:04A2  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Memory Store
                              
                              OpcodeS:
-00:0495  A500              :                 lda     ACCA
-00:0497  BB                :                 tyx
+00:04A5  A500              :                 lda     ACCA
+00:04A7  BB                :                 tyx
                                              short_a
                            +                 .longa  off
-00:0498  E220              +                 sep     #$20
-00:049A  9F0000C0          :                 sta     >MEML,x
-00:049E  EB                :                 xba
-00:049F  9F0000C1          :                 sta     >MEMH,x
+
+Portable 65xx Assembler [17.12]
+
+00:04A8  E220              +                 sep     #$20
+00:04AA  9F0000C0          :                 sta     >MEML,x
+00:04AE  EB                :                 xba
+00:04AF  9F0000C1          :                 sta     >MEMH,x
                                              long_a
                            +                 .longa  on
-00:04A3  C220              +                 rep     #$20
-00:04A5  4C0404            :                 jmp     Step
+00:04B3  C220              +                 rep     #$20
+00:04B5  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Addition
                              
                              OpcodeA:
-00:04A8  18                :                 clc
-00:04A9  98                :                 tya
-00:04AA  6500              :                 adc     ACCA
-00:04AC  8500              :                 sta     ACCA
-00:04AE  4C0404            :                 jmp     Step
+00:04B8  18                :                 clc
+00:04B9  98                :                 tya
+00:04BA  6500              :                 adc     ACCA
+00:04BC  8500              :                 sta     ACCA
+00:04BE  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Unconditional Jump
                              
                              OpcodeJ:
-00:04B1  8406              :                 sty     C
-00:04B3  4C0404            :                 jmp     Step
-
-Portable 65xx Assembler [17.12]
-
+00:04C1  8406              :                 sty     C
+00:04C3  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Jump if True
                              
                              OpcodeT:
-00:04B6  A500              :                 lda     ACCA
-00:04B8  F002              :                 if ne
-00:04BA  8406              :                  sty    C
+00:04C6  A500              :                 lda     ACCA
+00:04C8  F002              :                 if ne
+00:04CA  8406              :                  sty    C
                                              endif
-00:04BC  4C0404            :                 jmp     Step
+00:04CC  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Jump if False
                              
                              OpcodeF:
-00:04BF  A500              :                 lda     ACCA
-00:04C1  D002              :                 if eq
-00:04C3  8406              :                  sty    C
+00:04CF  A500              :                 lda     ACCA
+00:04D1  D002              :                 if eq
+00:04D3  8406              :                  sty    C
                                              endif
-00:04C5  4C0404            :                 jmp     Step
+00:04D5  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; Call
                              
                              OpcodeK:
                              
-00:04C8  4C0404            :                 jmp     Step
+00:04D8  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
-                             ; Execute Function
-                             
-                             OpcodeX:
-00:04CB  98                :                 tya                     ; Get function index
-00:04CC  F00B              :                 if ne                   ; Not zero?
-00:04CE  C92800            :                  cmp    #40             ; .. but less than 40?
-00:04D1  B006              :                  if cc
-00:04D3  3A                :                   dec   a               ; Scale to jump table index
-00:04D4  0A                :                   asl   a
-00:04D5  AA                :                   tax
-00:04D6  7CDB04            :                   jmp   (Function,x)    ; And goto to handler
-                                              endif
-                                             endif
-                             
-00:04D9  80FE              :                 bra     $               ; FIX: Invalid function
-                             
-                             Function:
-00:04DB  2905              :                 .word   Function1
-00:04DD  3D05              :                 .word   Function2
-00:04DF  4805              :                 .word   Function3
-00:04E1  5205              :                 .word   Function4
-00:04E3  5205              :                 .word   Function5
-00:04E5  5205              :                 .word   Function6
-00:04E7  5205              :                 .word   Function7
-00:04E9  5205              :                 .word   Function8
 
 Portable 65xx Assembler [17.12]
 
-00:04EB  5C05              :                 .word   Function9
-00:04ED  6605              :                 .word   Function10
-00:04EF  7305              :                 .word   Function11
-00:04F1  8005              :                 .word   Function12
-00:04F3  8305              :                 .word   Function13
-00:04F5  8605              :                 .word   Function14
-00:04F7  8905              :                 .word   Function15
-00:04F9  8C05              :                 .word   Function16
-00:04FB  A505              :                 .word   Function17
-00:04FD  BE05              :                 .word   Function18
-00:04FF  C705              :                 .word   Function19
-00:0501  D005              :                 .word   Function20
-00:0503  D905              :                 .word   Function21
-00:0505  E505              :                 .word   Function22
-00:0507  E705              :                 .word   Function23
-00:0509  EA05              :                 .word   Function24
-00:050B  ED05              :                 .word   Function25
-00:050D  F005              :                 .word   Function26
-00:050F  F305              :                 .word   Function27
-00:0511  F605              :                 .word   Function28
-00:0513  F905              :                 .word   Function29
-00:0515  FC05              :                 .word   Function30
-00:0517  FF05              :                 .word   Function31
-00:0519  0206              :                 .word   Function32
-00:051B  0506              :                 .word   Function33
-00:051D  0806              :                 .word   Function34
-00:051F  0B06              :                 .word   Function35
-00:0521  0E06              :                 .word   Function36
-00:0523  1106              :                 .word   Function37
-00:0525  1406              :                 .word   Function38
-00:0527  1706              :                 .word   Function39
+                             ; Execute Function
+                             
+                             OpcodeX:
+00:04DB  98                :                 tya                     ; Get function index
+00:04DC  F00B              :                 if ne                   ; Not zero?
+00:04DE  C92800            :                  cmp    #40             ; .. but less than 40?
+00:04E1  B006              :                  if cc
+00:04E3  3A                :                   dec   a               ; Scale to jump table index
+00:04E4  0A                :                   asl   a
+00:04E5  AA                :                   tax
+00:04E6  7CEB04            :                   jmp   (Function,x)    ; And goto to handler
+                                              endif
+                                             endif
+                             
+00:04E9  80FE              :                 bra     $               ; FIX: Invalid function
+                             
+                             Function:
+00:04EB  3905              :                 .word   Function1
+00:04ED  4D05              :                 .word   Function2
+00:04EF  5805              :                 .word   Function3
+00:04F1  6205              :                 .word   Function4
+00:04F3  6205              :                 .word   Function5
+00:04F5  6205              :                 .word   Function6
+00:04F7  6205              :                 .word   Function7
+00:04F9  6205              :                 .word   Function8
+00:04FB  6C05              :                 .word   Function9
+00:04FD  7605              :                 .word   Function10
+00:04FF  8305              :                 .word   Function11
+00:0501  9005              :                 .word   Function12
+00:0503  9305              :                 .word   Function13
+00:0505  9605              :                 .word   Function14
+00:0507  9905              :                 .word   Function15
+00:0509  9C05              :                 .word   Function16
+00:050B  B505              :                 .word   Function17
+00:050D  CE05              :                 .word   Function18
+00:050F  D705              :                 .word   Function19
+00:0511  E005              :                 .word   Function20
+00:0513  E905              :                 .word   Function21
+00:0515  F505              :                 .word   Function22
+00:0517  F705              :                 .word   Function23
+00:0519  FA05              :                 .word   Function24
+00:051B  0206              :                 .word   Function25
+00:051D  0A06              :                 .word   Function26
+00:051F  0D06              :                 .word   Function27
+00:0521  1006              :                 .word   Function28
+00:0523  1306              :                 .word   Function29
+00:0525  1606              :                 .word   Function30
+00:0527  1906              :                 .word   Function31
+00:0529  2D06              :                 .word   Function32
+00:052B  3806              :                 .word   Function33
+00:052D  3B06              :                 .word   Function34
+00:052F  3E06              :                 .word   Function35
+00:0531  4106              :                 .word   Function36
+00:0533  6206              :                 .word   Function37
+
+Portable 65xx Assembler [17.12]
+
+00:0535  8506              :                 .word   Function38
+00:0537  8D06              :                 .word   Function39
                              
                              ;-------------------------------------------------------------------------------
                              ; A = M[A]
                              
                              Function1:
-00:0529  A600              :                 ldx     ACCA            ; Fetch memory address
+00:0539  A600              :                 ldx     ACCA            ; Fetch memory address
                                              short_a
                            +                 .longa  off
-00:052B  E220              +                 sep     #$20
-00:052D  BF0000C1          :                 lda     >MEMH,x         ; Recover the value
-00:0531  EB                :                 xba
-00:0532  BF0000C0          :                 lda     >MEML,x
+00:053B  E220              +                 sep     #$20
+00:053D  BF0000C1          :                 lda     >MEMH,x         ; Recover the value
+00:0541  EB                :                 xba
+00:0542  BF0000C0          :                 lda     >MEML,x
                                              long_a
                            +                 .longa  on
-00:0536  C220              +                 rep     #$20
-00:0538  8500              :                 sta     ACCA            ; And store
-00:053A  4C0404            :                 jmp     Step            ; Done.
+00:0546  C220              +                 rep     #$20
+00:0548  8500              :                 sta     ACCA            ; And store
+00:054A  4C1404            :                 jmp     Step            ; Done.
                              
                              ;-------------------------------------------------------------------------------
                              ; A = -A
                              
                              Function2:
-00:053D  38                :                 sec
-
-Portable 65xx Assembler [17.12]
-
-00:053E  A90000            :                 lda     #0              ; Subtract A from zero
-00:0541  E500              :                 sbc     ACCA
-00:0543  8500              :                 sta     ACCA            ; And store
-00:0545  4C0404            :                 jmp     Step            ; Done.
+00:054D  38                :                 sec
+00:054E  A90000            :                 lda     #0              ; Subtract A from zero
+00:0551  E500              :                 sbc     ACCA
+00:0553  8500              :                 sta     ACCA            ; And store
+00:0555  4C1404            :                 jmp     Step            ; Done.
                              
                              ;-------------------------------------------------------------------------------
                              ; A = ~A
                              
                              Function3:
-00:0548  A9FFFF            :                 lda     #$ffff          ; Invert all bits in A
-00:054B  4500              :                 eor     ACCA
-00:054D  8500              :                 sta     ACCA            ; And store
-00:054F  4C0404            :                 jmp     Step            ; Done.
+00:0558  A9FFFF            :                 lda     #$ffff          ; Invert all bits in A
+00:055B  4500              :                 eor     ACCA
+00:055D  8500              :                 sta     ACCA            ; And store
+00:055F  4C1404            :                 jmp     Step            ; Done.
                              
                              ;-------------------------------------------------------------------------------
                              
@@ -425,244 +450,331 @@ Portable 65xx Assembler [17.12]
                              ; A = B + A
                              
                              Function8:
-00:0552  18                :                 clc
-00:0553  A502              :                 lda     ACCB
-00:0555  6500              :                 adc     ACCA
-00:0557  8500              :                 sta     ACCA
-00:0559  4C0404            :                 jmp     Step
+00:0562  18                :                 clc
+00:0563  A502              :                 lda     ACCB
+00:0565  6500              :                 adc     ACCA
+00:0567  8500              :                 sta     ACCA
+
+Portable 65xx Assembler [17.12]
+
+00:0569  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = B - A
                              
                              Function9:
-00:055C  38                :                 sec
-00:055D  A502              :                 lda     ACCB
-00:055F  E500              :                 sbc     ACCA
-00:0561  8500              :                 sta     ACCA
-00:0563  4C0404            :                 jmp     Step
+00:056C  38                :                 sec
+00:056D  A502              :                 lda     ACCB
+00:056F  E500              :                 sbc     ACCA
+00:0571  8500              :                 sta     ACCA
+00:0573  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = (B == A)
                              
                              Function10:
-00:0566  A500              :                 lda     ACCA
-00:0568  6400              :                 stz     ACCA
-00:056A  C502              :                 cmp     ACCB
-00:056C  D002              :                 if eq
-00:056E  C600              :                  dec    ACCA
+00:0576  A500              :                 lda     ACCA
+00:0578  6400              :                 stz     ACCA
+00:057A  C502              :                 cmp     ACCB
+00:057C  D002              :                 if eq
+00:057E  C600              :                  dec    ACCA
                                              endif
-00:0570  4C0404            :                 jmp     Step
+00:0580  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
-
-Portable 65xx Assembler [17.12]
-
                              ; A = (B != A)
                              
                              Function11:
-00:0573  A500              :                 lda     ACCA
-00:0575  6400              :                 stz     ACCA
-00:0577  C502              :                 cmp     ACCB
-00:0579  F002              :                 if ne
-00:057B  C600              :                  dec    ACCA
+00:0583  A500              :                 lda     ACCA
+00:0585  6400              :                 stz     ACCA
+00:0587  C502              :                 cmp     ACCB
+00:0589  F002              :                 if ne
+00:058B  C600              :                  dec    ACCA
                                              endif
-00:057D  4C0404            :                 jmp     Step
+00:058D  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function12:
-00:0580  4C0404            :                 jmp     Step
+00:0590  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function13:
-00:0583  4C0404            :                 jmp     Step
+00:0593  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function14:
-00:0586  4C0404            :                 jmp     Step
+00:0596  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function15:
-00:0589  4C0404            :                 jmp     Step
+
+Portable 65xx Assembler [17.12]
+
+00:0599  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = B << A
                              
                              Function16:
-00:058C  A502              :                 lda     ACCB
-00:058E  A600              :                 ldx     ACCA
-00:0590  F00E              :                 if ne
-00:0592  E01600            :                  cpx    #$16
-00:0595  9005              :                  if cs
-00:0597  6400              :                   stz   ACCA
-00:0599  4C0404            :                   jmp   Step
+00:059C  A502              :                 lda     ACCB
+00:059E  A600              :                 ldx     ACCA
+00:05A0  F00E              :                 if ne
+00:05A2  E01600            :                  cpx    #$16
+00:05A5  9005              :                  if cs
+00:05A7  6400              :                   stz   ACCA
+00:05A9  4C1404            :                   jmp   Step
                                               endif
                                               repeat
-00:059C  0A                :                   asl   a
-00:059D  CA                :                   dex
-00:059E  D0FC              :                  until eq
+00:05AC  0A                :                   asl   a
+00:05AD  CA                :                   dex
+00:05AE  D0FC              :                  until eq
                                              endif
-00:05A0  8500              :                 sta     ACCA
-00:05A2  4C0404            :                 jmp     Step
+00:05B0  8500              :                 sta     ACCA
+00:05B2  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = B >> A
                              
-
-Portable 65xx Assembler [17.12]
-
                              Function17:
-00:05A5  A502              :                 lda     ACCB
-00:05A7  A600              :                 ldx     ACCA
-00:05A9  F00E              :                 if ne
-00:05AB  E01600            :                  cpx    #$16
-00:05AE  9005              :                  if cs
-00:05B0  6400              :                   stz   ACCA
-00:05B2  4C0404            :                   jmp   Step
+00:05B5  A502              :                 lda     ACCB
+00:05B7  A600              :                 ldx     ACCA
+00:05B9  F00E              :                 if ne
+00:05BB  E01600            :                  cpx    #$16
+00:05BE  9005              :                  if cs
+00:05C0  6400              :                   stz   ACCA
+00:05C2  4C1404            :                   jmp   Step
                                               endif
                                               repeat
-00:05B5  4A                :                   lsr   a
-00:05B6  CA                :                   dex
-00:05B7  D0FC              :                  until eq
+00:05C5  4A                :                   lsr   a
+00:05C6  CA                :                   dex
+00:05C7  D0FC              :                  until eq
                                              endif
-00:05B9  8500              :                 sta     ACCA
-00:05BB  4C0404            :                 jmp     Step
+00:05C9  8500              :                 sta     ACCA
+00:05CB  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = B & A
                              
                              Function18:
-00:05BE  A502              :                 lda     ACCB
-00:05C0  2500              :                 and     ACCA
-00:05C2  8500              :                 sta     ACCA
-00:05C4  4C0404            :                 jmp     Step
-                                     
+00:05CE  A502              :                 lda     ACCB
+00:05D0  2500              :                 and     ACCA
+00:05D2  8500              :                 sta     ACCA
+00:05D4  4C1404            :                 jmp     Step
+                             
                              ;-------------------------------------------------------------------------------
                              ; A = B | A
-                                     
+                             
+
+Portable 65xx Assembler [17.12]
+
                              Function19:
-00:05C7  A502              :                 lda     ACCB
-00:05C9  0500              :                 ora     ACCA
-00:05CB  8500              :                 sta     ACCA
-00:05CD  4C0404            :                 jmp     Step
+00:05D7  A502              :                 lda     ACCB
+00:05D9  0500              :                 ora     ACCA
+00:05DB  8500              :                 sta     ACCA
+00:05DD  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = B ^ A
                              
                              Function20:
-00:05D0  A502              :                 lda     ACCB
-00:05D2  4500              :                 eor     ACCA
-00:05D4  8500              :                 sta     ACCA
-00:05D6  4C0404            :                 jmp     Step
+00:05E0  A502              :                 lda     ACCB
+00:05E2  4500              :                 eor     ACCA
+00:05E4  8500              :                 sta     ACCA
+00:05E6  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              ; A = ~(B ^ A)
-                                     
-                             Function21:
-00:05D9  A502              :                 lda     ACCB
-00:05DB  4500              :                 eor     ACCA
-00:05DD  49FFFF            :                 eor     #$ffff
-00:05E0  8500              :                 sta     ACCA
-00:05E2  4C0404            :                 jmp     Step
                              
-
-Portable 65xx Assembler [17.12]
-
+                             Function21:
+00:05E9  A502              :                 lda     ACCB
+00:05EB  4500              :                 eor     ACCA
+00:05ED  49FFFF            :                 eor     #$ffff
+00:05F0  8500              :                 sta     ACCA
+00:05F2  4C1404            :                 jmp     Step
+                             
                              ;-------------------------------------------------------------------------------
                              
                              Function22:
-00:05E5  80FE              :                 bra     $               ; FIX: Exit
+00:05F5  80FE              :                 bra     $               ; FIX: Exit
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function23:
-00:05E7  4C0404            :                 jmp     Step
+00:05F7  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
+                             ; FI = A-1
                              
                              Function24:
-00:05EA  4C0404            :                 jmp     Step
+00:05FA  A500              :                 lda     ACCA
+00:05FC  3A                :                 dec     a
+00:05FD  850C              :                 sta     FI
+00:05FF  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
+                             ; FO = A-1
                              
                              Function25:
-00:05ED  4C0404            :                 jmp     Step
+00:0602  A500              :                 lda     ACCA
+00:0604  3A                :                 dec     a
+00:0605  850E              :                 sta     FO
+00:0607  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
-                             
-                             Function26:
-00:05F0  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function27:
-00:05F3  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function28:
-00:05F6  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function29:
-00:05F9  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function30:
-00:05FC  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function31:
-00:05FF  4C0404            :                 jmp     Step
-                             
-                             ;-------------------------------------------------------------------------------
-                             
-                             Function32:
-00:0602  4C0404            :                 jmp     Step
 
 Portable 65xx Assembler [17.12]
 
+                             ; Read a byte
+                             
+                             Function26:
+00:060A  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Write a byte
+                             
+                             Function27:
+00:060D  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Open for read
+                             
+                             Function28:
+00:0610  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Open for write
+                             
+                             Function29:
+00:0613  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; Stop
+                             
+                             Function30:
+00:0616  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; A = M[P]
+                             
+                             Function31:
+00:0619  A608              :                 ldx     P
+                                             short_a
+                           +                 .longa  off
+00:061B  E220              +                 sep     #$20
+00:061D  BF0000C1          :                 lda     >MEMH,x
+00:0621  EB                :                 xba
+00:0622  BF0000C0          :                 lda     >MEML,x
+                                             long_a
+                           +                 .longa  on
+00:0626  C220              +                 rep     #$20
+00:0628  8500              :                 sta     ACCA
+00:062A  4C1404            :                 jmp     Step
+                             
+                             ;-------------------------------------------------------------------------------
+                             ; P,C = A,B
+                             
+                             Function32:
+00:062D  A500              :                 lda     ACCA
+00:062F  8508              :                 sta     P
+00:0631  A502              :                 lda     ACCB
+00:0633  8506              :                 sta     C
+
+Portable 65xx Assembler [17.12]
+
+00:0635  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function33:
-00:0605  4C0404            :                 jmp     Step
+00:0638  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function34:
-00:0608  4C0404            :                 jmp     Step
+00:063B  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
                              
                              Function35:
-00:060B  4C0404            :                 jmp     Step
+00:063E  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
+                             ; GETBYTE (A,B)
                              
                              Function36:
-00:060E  4C0404            :                 jmp     Step
+00:0641  A502              :                 lda     ACCB            ; Work out byte offset
+00:0643  4A                :                 lsr     a
+00:0644  08                :                 php                     ; Save carry
+00:0645  18                :                 clc                     ; Add base word address
+00:0646  6500              :                 adc     ACCA
+00:0648  AA                :                 tax                     ; Save in index register
+00:0649  28                :                 plp                     ; Pull back carry
+                                             short_a
+                           +                 .longa  off
+00:064A  E220              +                 sep     #$20
+00:064C  B006              :                 if cc
+00:064E  BF0000C1          :                  lda    >MEMH,x         ; Load from either high
+00:0652  8004              :                 else
+00:0654  BF0000C0          :                  lda    >MEML,x         ; .. or low byte
+                                             endif
+                                             long_a
+                           +                 .longa  on
+00:0658  C220              +                 rep     #$20
+00:065A  29FF00            :                 and     #$00ff          ; Mask to byte value
+00:065D  8500              :                 sta     ACCA            ; And save
+00:065F  4C1404            :                 jmp     Step            ; Done
                              
                              ;-------------------------------------------------------------------------------
+                             ; PUTBYTE(A,B,M[P+4])
                              
                              Function37:
-00:0611  4C0404            :                 jmp     Step
+00:0662  A502              :                 lda     ACCB            ; Work out byte offset
+00:0664  4A                :                 lsr     a
+00:0665  08                :                 php                     ; Save carry
+00:0666  18                :                 clc                     ; Add base word address
+00:0667  6500              :                 adc     ACCA
+00:0669  A8                :                 tay                     ; Save in index register
+00:066A  A608              :                 ldx     P               ; Fetch stack pointer
+
+Portable 65xx Assembler [17.12]
+
+00:066C  28                :                 plp                     ; Pull back carry
+                                             short_a
+                           +                 .longa  off
+00:066D  E220              +                 sep     #$20
+00:066F  BF0400C0          :                 lda     >MEML+4,x       ; Fetch byte to store
+00:0673  BB                :                 tyx
+00:0674  B006              :                 if cc
+00:0676  9F0000C1          :                  sta    >MEMH,x         ; Save in either high
+00:067A  8004              :                 else
+00:067C  9F0000C0          :                  sta    >MEML,x         ; .. or low byte
+                                             endif
+                                             long_a
+                           +                 .longa  on
+00:0680  C220              +                 rep     #$20
+00:0682  4C1404            :                 jmp     Step            ; Done.
                              
                              ;-------------------------------------------------------------------------------
+                             ; A = FI+1
                              
                              Function38:
-00:0614  4C0404            :                 jmp     Step
+00:0685  A50C              :                 lda     FI
+00:0687  1A                :                 inc     a
+00:0688  8500              :                 sta     ACCA
+00:068A  4C1404            :                 jmp     Step
                              
                              ;-------------------------------------------------------------------------------
+                             ; A = FO+1
                              
                              Function39:
-00:0617  4C0404            :                 jmp     Step
+00:068D  A50E              :                 lda     FO
+00:068F  1A                :                 inc     a
+00:0690  8500              :                 sta     ACCA
+00:0692  4C1404            :                 jmp     Step
                              
                              ;===============================================================================
                              ; CH376S Module Interface
@@ -671,57 +783,58 @@ Portable 65xx Assembler [17.12]
                              
                                              .longa  off
                              SetFileName:
-00:061A  A9AA              :                 lda     #SET_FILE_NAME  ; Send command
-00:061C  202C06            :                 jsr     SendCommand
+00:0695  A9AA              :                 lda     #SET_FILE_NAME  ; Send command
+00:0697  20A706            :                 jsr     SendCommand
                                              repeat
-00:061F  BD0000            :                  lda    !0,x            ; Followed by null terminated 
-00:0622  08                :                  php                    ; .. string
-00:0623  203E06            :                  jsr    DiskTx
-00:0626  28                :                  plp
-00:0627  D0F6              :                 until eq
-00:0629  4C3B06            :                 jmp     ReadStatus
+00:069A  BD0000            :                  lda    !0,x            ; Followed by null terminated
+00:069D  08                :                  php                    ; .. string
+00:069E  20B906            :                  jsr    DiskTx
+00:06A1  28                :                  plp
+00:06A2  D0F6              :                 until eq
+00:06A4  4CB606            :                 jmp     ReadStatus
                              
                              
+                             ; Transmit the command synchronisation prefix to the CH376 followed by the
+                             ; command code.
 
 Portable 65xx Assembler [17.12]
 
-                             ; Transmit the command synchronisation prefix to the CH376 followed by the
-                             ; command code.
                              
                                              .longa  off
                              SendCommand:
-00:062C  48                :                 pha                     ; Save the command
-00:062D  A957              :                 lda     #$57            ; Send the prefix
-00:062F  203E06            :                 jsr     DiskTx          
-00:0632  A9AA              :                 lda     #$aa
-00:0634  203E06            :                 jsr     DiskTx
-00:0637  68                :                 pla                     ; Recover command
-00:0638  4C3E06            :                 jmp     DiskTx          ; And send
+00:06A7  48                :                 pha                     ; Save the command
+00:06A8  A957              :                 lda     #$57            ; Send the prefix
+00:06AA  20B906            :                 jsr     DiskTx
+00:06AD  A9AA              :                 lda     #$aa
+00:06AF  20B906            :                 jsr     DiskTx
+00:06B2  68                :                 pla                     ; Recover command
+00:06B3  4CB906            :                 jmp     DiskTx          ; And send
                              
                              ;
                                              .longa  off
                              ReadStatus:
-00:063B  60                :                 rts
+00:06B6  60                :                 rts
                              
                              ;===============================================================================
                              ; UART Interfaces
                              ;-------------------------------------------------------------------------------
                              
                              UartTx:
-00:063C  60                :                 rts
+00:06B7  60                :                 rts
                              
                              UartRx:
-00:063D  60                :                 rts
+00:06B8  60                :                 rts
                              
                              ;-------------------------------------------------------------------------------
                              
                              DiskTx:
-00:063E  60                :                 rts
+00:06B9  60                :                 rts
                              
                              DiskRx:
-00:063F  60                :                 rts
+00:06BA  60                :                 rts
                              
-                             
+                                             .org    $fffc
+00:FFFC  0004              :                 .word   RESET
                              
                                              .end
 
@@ -735,79 +848,82 @@ ACCB                             00000002  | __6501__                         00
 C                                00000006  | __6502__                         00000000 
 CHECK_EXIST                      00000006  | __65832__                        00000000 
 COMMAND                          00000200  | __65C02__                        00000000 
-DiskRx                           0000063F  | __65SC02__                       00000000 
-DiskTx                           0000063E  | __65816__                        00000001 
+DiskRx                           000006BA  | __65SC02__                       00000000 
+DiskTx                           000006B9  | __65816__                        00000001 
 ENTER_SLEEP                      00000003  | ACCB                             00000002 
-Function                         000004DB  | SET_BAUDRATE                     00000002 
-Function1                        00000529  | ENTER_SLEEP                      00000003 
-Function10                       00000566  | G                                00000004 
-Function11                       00000573  | RESET_ALL                        00000005 
-Function12                       00000580  | C                                00000006 
-Function13                       00000583  | CHECK_EXIST                      00000006 
-Function14                       00000586  | P                                00000008 
-Function15                       00000589  | W                                0000000A 
-Function16                       0000058C  | GET_STATUS                       00000022 
-Function17                       000005A5  | SET_FILE_NAME                    000000AA 
-Function18                       000005BE  | COMMAND                          00000200 
-Function19                       000005C7  | Step                             00000404 
-Function2                        0000053D  | Opcode                           0000046E 
-Function20                       000005D0  | OpcodeL                          0000047E 
-Function21                       000005D9  | OpcodeS                          00000495 
-Function22                       000005E5  | OpcodeA                          000004A8 
-Function23                       000005E7  | OpcodeJ                          000004B1 
-Function24                       000005EA  | OpcodeT                          000004B6 
-Function25                       000005ED  | OpcodeF                          000004BF 
-Function26                       000005F0  | OpcodeK                          000004C8 
-Function27                       000005F3  | OpcodeX                          000004CB 
-Function28                       000005F6  | Function                         000004DB 
-Function29                       000005F9  | Function1                        00000529 
-Function3                        00000548  | Function2                        0000053D 
-Function30                       000005FC  | Function3                        00000548 
-Function31                       000005FF  | Function4                        00000552 
-Function32                       00000602  | Function5                        00000552 
-Function33                       00000605  | Function6                        00000552 
-Function34                       00000608  | Function7                        00000552 
-Function35                       0000060B  | Function8                        00000552 
-Function36                       0000060E  | Function9                        0000055C 
-Function37                       00000611  | Function10                       00000566 
-Function38                       00000614  | Function11                       00000573 
-Function39                       00000617  | Function12                       00000580 
-Function4                        00000552  | Function13                       00000583 
-Function5                        00000552  | Function14                       00000586 
-Function6                        00000552  | Function15                       00000589 
-Function7                        00000552  | Function16                       0000058C 
-Function8                        00000552  | Function17                       000005A5 
-Function9                        0000055C  | Function18                       000005BE 
-G                                00000004  | Function19                       000005C7 
-GET_STATUS                       00000022  | Function20                       000005D0 
-MEMH                             00C10000  | Function21                       000005D9 
-MEML                             00C00000  | Function22                       000005E5 
+FI                               0000000C  | SET_BAUDRATE                     00000002 
+FO                               0000000E  | ENTER_SLEEP                      00000003 
+Function                         000004EB  | G                                00000004 
+Function1                        00000539  | RESET_ALL                        00000005 
+Function10                       00000576  | C                                00000006 
+Function11                       00000583  | CHECK_EXIST                      00000006 
+Function12                       00000590  | P                                00000008 
+Function13                       00000593  | W                                0000000A 
+Function14                       00000596  | FI                               0000000C 
+Function15                       00000599  | FO                               0000000E 
+Function16                       0000059C  | GET_STATUS                       00000022 
+Function17                       000005B5  | SET_FILE_NAME                    000000AA 
+Function18                       000005CE  | COMMAND                          00000200 
+Function19                       000005D7  | RESET                            00000400 
+Function2                        0000054D  | Step                             00000414 
+Function20                       000005E0  | Opcode                           0000047E 
+Function21                       000005E9  | OpcodeL                          0000048E 
+Function22                       000005F5  | OpcodeS                          000004A5 
+Function23                       000005F7  | OpcodeA                          000004B8 
+Function24                       000005FA  | OpcodeJ                          000004C1 
+Function25                       00000602  | OpcodeT                          000004C6 
+Function26                       0000060A  | OpcodeF                          000004CF 
+Function27                       0000060D  | OpcodeK                          000004D8 
+Function28                       00000610  | OpcodeX                          000004DB 
+Function29                       00000613  | Function                         000004EB 
+Function3                        00000558  | Function1                        00000539 
+Function30                       00000616  | Function2                        0000054D 
+Function31                       00000619  | Function3                        00000558 
+Function32                       0000062D  | Function4                        00000562 
+Function33                       00000638  | Function5                        00000562 
+Function34                       0000063B  | Function6                        00000562 
+Function35                       0000063E  | Function7                        00000562 
+Function36                       00000641  | Function8                        00000562 
+Function37                       00000662  | Function9                        0000056C 
+Function38                       00000685  | Function10                       00000576 
+Function39                       0000068D  | Function11                       00000583 
+Function4                        00000562  | Function12                       00000590 
+Function5                        00000562  | Function13                       00000593 
+Function6                        00000562  | Function14                       00000596 
+Function7                        00000562  | Function15                       00000599 
+Function8                        00000562  | Function16                       0000059C 
+Function9                        0000056C  | Function17                       000005B5 
+G                                00000004  | Function18                       000005CE 
+GET_STATUS                       00000022  | Function19                       000005D7 
 
 Portable 65xx Assembler [17.12]
 
-Opcode                           0000046E  | Function23                       000005E7 
-OpcodeA                          000004A8  | Function24                       000005EA 
-OpcodeF                          000004BF  | Function25                       000005ED 
-OpcodeJ                          000004B1  | Function26                       000005F0 
-OpcodeK                          000004C8  | Function27                       000005F3 
-OpcodeL                          0000047E  | Function28                       000005F6 
-OpcodeS                          00000495  | Function29                       000005F9 
-OpcodeT                          000004B6  | Function30                       000005FC 
-OpcodeX                          000004CB  | Function31                       000005FF 
-P                                00000008  | Function32                       00000602 
-RESET_ALL                        00000005  | Function33                       00000605 
-ReadStatus                       0000063B  | Function34                       00000608 
-SET_BAUDRATE                     00000002  | Function35                       0000060B 
-SET_FILE_NAME                    000000AA  | Function36                       0000060E 
-SendCommand                      0000062C  | Function37                       00000611 
-SetFileName                      0000061A  | Function38                       00000614 
-Step                             00000404  | Function39                       00000617 
-UartRx                           0000063D  | SetFileName                      0000061A 
-UartTx                           0000063C  | SendCommand                      0000062C 
-W                                0000000A  | ReadStatus                       0000063B 
-__6501__                         00000000  | UartTx                           0000063C 
-__6502__                         00000000  | UartRx                           0000063D 
-__65816__                        00000001  | DiskTx                           0000063E 
-__65832__                        00000000  | DiskRx                           0000063F 
+MEMH                             00C10000  | Function20                       000005E0 
+MEML                             00C00000  | Function21                       000005E9 
+Opcode                           0000047E  | Function22                       000005F5 
+OpcodeA                          000004B8  | Function23                       000005F7 
+OpcodeF                          000004CF  | Function24                       000005FA 
+OpcodeJ                          000004C1  | Function25                       00000602 
+OpcodeK                          000004D8  | Function26                       0000060A 
+OpcodeL                          0000048E  | Function27                       0000060D 
+OpcodeS                          000004A5  | Function28                       00000610 
+OpcodeT                          000004C6  | Function29                       00000613 
+OpcodeX                          000004DB  | Function30                       00000616 
+P                                00000008  | Function31                       00000619 
+RESET                            00000400  | Function32                       0000062D 
+RESET_ALL                        00000005  | Function33                       00000638 
+ReadStatus                       000006B6  | Function34                       0000063B 
+SET_BAUDRATE                     00000002  | Function35                       0000063E 
+SET_FILE_NAME                    000000AA  | Function36                       00000641 
+SendCommand                      000006A7  | Function37                       00000662 
+SetFileName                      00000695  | Function38                       00000685 
+Step                             00000414  | Function39                       0000068D 
+UartRx                           000006B8  | SetFileName                      00000695 
+UartTx                           000006B7  | SendCommand                      000006A7 
+W                                0000000A  | ReadStatus                       000006B6 
+__6501__                         00000000  | UartTx                           000006B7 
+__6502__                         00000000  | UartRx                           000006B8 
+__65816__                        00000001  | DiskTx                           000006B9 
+__65832__                        00000000  | DiskRx                           000006BA 
 __65C02__                        00000000  | MEML                             00C00000 
 __65SC02__                       00000000  | MEMH                             00C10000 

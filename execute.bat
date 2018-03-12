@@ -1,2 +1,2 @@
-emu816 fibonacci.s28 > trace.log
+emu816 -t bcpl.s28 > trace.log
 pause

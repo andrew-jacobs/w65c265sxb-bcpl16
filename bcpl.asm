@@ -1,12 +1,12 @@
 ;===============================================================================
 ;
-; `7MM"""Yp,   .g8"""bgd `7MM"""Mq.`7MMF'      
-;   MM    Yb .dP'     `M   MM   `MM. MM        
-;   MM    dP dM'       `   MM   ,M9  MM        
-;   MM"""bg. MM            MMmmdM9   MM        
-;   MM    `Y MM.           MM        MM      , 
-;   MM    ,9 `Mb.     ,'   MM        MM     ,M 
-; .JMMmmmd9    `"bmmmd'  .JMML.    .JMMmmmmMMM 
+; `7MM"""Yp,   .g8"""bgd `7MM"""Mq.`7MMF'
+;   MM    Yb .dP'     `M   MM   `MM. MM
+;   MM    dP dM'       `   MM   ,M9  MM
+;   MM"""bg. MM            MMmmdM9   MM
+;   MM    `Y MM.           MM        MM      ,
+;   MM    ,9 `Mb.     ,'   MM        MM     ,M
+; .JMMmmmd9    `"bmmmd'  .JMML.    .JMMmmmmMMM
 ;
 ; BCPL for the WDC W65C265SXB
 ;-------------------------------------------------------------------------------
@@ -19,7 +19,7 @@
 ; See here for details:
 ;
 ;	https://creativecommons.org/licenses/by-nc-sa/4.0/
-;                                            
+;
 ;-------------------------------------------------------------------------------
 
 		.65816
@@ -92,7 +92,9 @@ C		.space	2
 P		.space	2
 
 W		.space	2
-;D		.space	2
+
+FI		.space	2
+FO		.space	2
 
 ;-------------------------------------------------------------------------------
 
@@ -107,13 +109,29 @@ COMMAND		.space	256
 		.code
 		.org	$0400
 
+		.longa	off
+		.longi	off
+RESET:
+		sei
+		sec
+		xce
+
+		ldx	#$ff
+		txs
+
 ; Reset Hardware
+
+		clc
+		xce
+		long_i
+
 
 ; Mount Disk
 
 ; Read Command
 
 ; Load Target
+
 
 ;===============================================================================
 ; INTCODE Interpreter
@@ -131,6 +149,11 @@ COMMAND		.space	256
 
 		stz	ACCA
 		stz	ACCB
+
+		stz	FO
+		stz	FO
+		inc	FO
+
 Step:
 		ldx	C		; Fetch the next instruction
 		short_a
@@ -485,10 +508,10 @@ Function18:
 		and	ACCA
 		sta	ACCA
 		jmp	Step
-	
+
 ;-------------------------------------------------------------------------------
 ; A = B | A
-	
+
 Function19:
 		lda	ACCB
 		ora	ACCA
@@ -506,7 +529,7 @@ Function20:
 
 ;-------------------------------------------------------------------------------
 ; A = ~(B ^ A)
-	
+
 Function21:
 		lda	ACCB
 		eor	ACCA
@@ -525,48 +548,74 @@ Function23:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; FI = A-1
 
 Function24:
+		lda	ACCA
+		dec	a
+		sta	FI
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; FO = A-1
 
 Function25:
+		lda	ACCA
+		dec	a
+		sta	FO
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; Read a byte
 
 Function26:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; Write a byte
 
 Function27:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; Open for read
 
 Function28:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; Open for write
 
 Function29:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; Stop
 
 Function30:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; A = M[P]
 
 Function31:
+		ldx	P
+		short_a
+		lda	>MEMH,x
+		xba
+		lda	>MEML,x
+		long_a
+		sta	ACCA
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; P,C = A,B
 
 Function32:
+		lda	ACCA
+		sta	P
+		lda	ACCB
+		sta	C
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
@@ -585,23 +634,66 @@ Function35:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; GETBYTE (A,B)
 
 Function36:
-		jmp	Step
+		lda	ACCB		; Work out byte offset
+		lsr	a
+		php			; Save carry
+		clc			; Add base word address
+		adc	ACCA
+		tax			; Save in index register
+		plp			; Pull back carry
+		short_a
+		if cc
+		 lda	>MEMH,x		; Load from either high
+		else
+		 lda	>MEML,x		; .. or low byte
+		endif
+		long_a
+		and	#$00ff		; Mask to byte value
+		sta	ACCA		; And save
+		jmp	Step		; Done
 
 ;-------------------------------------------------------------------------------
+; PUTBYTE(A,B,M[P+4])
 
 Function37:
-		jmp	Step
+		lda	ACCB		; Work out byte offset
+		lsr	a
+		php			; Save carry
+		clc			; Add base word address
+		adc	ACCA
+		tay			; Save in index register
+		ldx	P		; Fetch stack pointer
+		plp			; Pull back carry
+		short_a
+		lda	>MEML+4,x	; Fetch byte to store
+		tyx
+		if cc
+		 sta	>MEMH,x		; Save in either high
+		else
+		 sta	>MEML,x		; .. or low byte
+		endif
+		long_a
+		jmp	Step		; Done.
 
 ;-------------------------------------------------------------------------------
+; A = FI+1
 
 Function38:
+		lda	FI
+		inc	a
+		sta	ACCA
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; A = FO+1
 
 Function39:
+		lda	FO
+		inc	a
+		sta	ACCA
 		jmp	Step
 
 ;===============================================================================
@@ -614,7 +706,7 @@ SetFileName:
 		lda	#SET_FILE_NAME	; Send command
 		jsr	SendCommand
 		repeat
-		 lda	!0,x		; Followed by null terminated 
+		 lda	!0,x		; Followed by null terminated
 		 php			; .. string
 		 jsr	DiskTx
 		 plp
@@ -629,7 +721,7 @@ SetFileName:
 SendCommand:
 		pha			; Save the command
 		lda	#$57		; Send the prefix
-		jsr	DiskTx		
+		jsr	DiskTx
 		lda	#$aa
 		jsr	DiskTx
 		pla			; Recover command
@@ -658,6 +750,7 @@ DiskTx:
 DiskRx:
 		rts
 
-
+		.org	$fffc
+		.word	RESET
 
 		.end
