@@ -24,43 +24,14 @@
 
 		.65816
 
-;===============================================================================
-; Macros
-;-------------------------------------------------------------------------------
-
-short_a		.macro
-		.longa	off
-		sep	#$20
-		.endm
-
-short_i		.macro
-		.longa	off
-		sep	#$10
-		.endm
-
-short_ai	.macro
-		.longa	off
-		sep	#$30
-		.endm
-
-long_a		.macro
-		.longa	on
-		rep	#$20
-		.endm
-
-long_i		.macro
-		.longa	on
-		rep	#$10
-		.endm
-
-long_ai		.macro
-		.longa	on
-		rep	#$30
-		.endm
+		.include "w65c265.inc"
+		.include "w65c265sxb.inc"
 
 ;===============================================================================
 ; Constants
 ;-------------------------------------------------------------------------------
+
+BRG_9600	.equ	OSC_FREQ / (16 * 9600)-1
 
 ; The starting addresses of the data memory area using (/CS7)
 
@@ -113,25 +84,70 @@ COMMAND		.space	256
 		.longi	off
 RESET:
 		sei
-		sec
-		xce
-
+		emulate
 		ldx	#$ff
 		txs
 
 ; Reset Hardware
 
-		clc
-		xce
+                lda     #%00010000              ; Set UARTs to use timer 3
+                trb     TCR
+                lda     #<BRG_9600              ; And set baud rate
+                sta     T3CL
+                lda     #>BRG_9600
+                sta     T3CH
+
+                lda     #1<<3                   ; Enable timer 3
+                tsb     TER
+
+                lda     #%00100101              ; Set UART3 & 2 for 8-N-1
+                sta     ACSR3
+		sta	ACSR2
+
+		native
 		long_i
-
-
+		
+		jsr	NewLine
+		ldx	#BOOT_STRING
+		jsr	Print
+	
 ; Mount Disk
 
 ; Read Command
 
+		jsr	NewLine
+		
+		lda	#$15
+		jsr	SendCommand
+		lda	#$06
+		jsr	DiskTx
+		repeat
+		 jsr	DiskRx
+		 jsr	Hex2
+		forever
+
+		brk
+
+
 ; Load Target
 
+
+Hex2:
+		pha
+		lsr	a
+		lsr	a
+		lsr	a
+		lsr	a
+		jsr	Hex
+		pla
+Hex:
+		and	#$0f
+		ora	#'0'
+		cmp	#'9'+1
+		if	cs
+		 adc	#6
+		endif
+		jmp	UartTx
 
 ;===============================================================================
 ; INTCODE Interpreter
@@ -722,7 +738,7 @@ SendCommand:
 		pha			; Save the command
 		lda	#$57		; Send the prefix
 		jsr	DiskTx
-		lda	#$aa
+		lda	#$ab
 		jsr	DiskTx
 		pla			; Recover command
 		jmp	DiskTx		; And send
@@ -736,21 +752,75 @@ ReadStatus:
 ; UART Interfaces
 ;-------------------------------------------------------------------------------
 
+; Use UART3 to communicate with the console
+; Use UART2 to communicate with the CH376S module
+
+		.longa	off
 UartTx:
+		pha
+		lda	#1<<7
+		repeat
+		 bit	UIFR
+		until	ne
+		pla
+		sta	ARTD3
 		rts
 
+		.longa	off
 UartRx:
+		lda	#1<<6
+		repeat
+		 bit	UIFR
+		until 	ne
+		lda	ARTD3
+		rts
+		
+		.longi	on
+NewLine:
+		ldx	#CRLF_STRING
+		
+Print:
+		repeat
+		 lda	!0,x
+		 break	eq
+		 jsr	UartTx
+		 inx
+		forever
 		rts
 
 ;-------------------------------------------------------------------------------
 
+		.longa	off
 DiskTx:
+		pha
+		lda	#1<<5
+		repeat
+		 bit	UIFR
+		until	ne
+		pla
+		sta	ARTD2
+	jmp	Hex2
 		rts
 
+
+		.longa	off
 DiskRx:
+		lda	#1<<4
+		repeat
+		 bit	UIFR
+		until 	ne
+		lda	ARTD2
 		rts
+		rts
+		
+;===============================================================================
+;-------------------------------------------------------------------------------
 
-		.org	$fffc
-		.word	RESET
+BOOT_STRING	.byte	$0d,$0a,"W65C265SXB BCPL [18.03]"
+CRLF_STRING	.byte	$0d,$0a,$00
+
+
+;		.org	$fffc
+;		.word	RESET
 
 		.end
