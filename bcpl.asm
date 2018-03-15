@@ -31,6 +31,9 @@
 ; Constants
 ;-------------------------------------------------------------------------------
 
+T0_HZ		.equ	1000
+T0_COUNT	.equ	OSC_FREQ / T0_HZ
+
 BRG_9600	.equ	OSC_FREQ / (16 * 9600)-1
 
 ; The starting addresses of the data memory area using (/CS7)
@@ -90,14 +93,19 @@ RESET:
 
 ; Reset Hardware
 
-                lda     #%00010000              ; Set UARTs to use timer 3
+		lda	#<T0_COUNT		; Set T0 for 1mSec
+		sta	T0CL
+		lda	#>T0_COUNT
+		sta	T0CH
+
+                lda     #%11110000              ; Set UARTs to use timer 3
                 trb     TCR
                 lda     #<BRG_9600              ; And set baud rate
                 sta     T3CL
                 lda     #>BRG_9600
                 sta     T3CH
 
-                lda     #1<<3                   ; Enable timer 3
+                lda     #(1<<0)|(1<<3)       	; Enable timers 0 & 3
                 tsb     TER
 
                 lda     #%00100101              ; Set UART3 & 2 for 8-N-1
@@ -122,8 +130,14 @@ RESET:
 		lda	#$06
 		jsr	DiskTx
 		repeat
+		 lda	#100
 		 jsr	DiskRx
-		 jsr	Hex2
+		 if cc
+		  jsr	Hex2
+		 else
+		  lda	#'.'
+		  jsr	UartTx
+		 endif
 		forever
 
 		brk
@@ -805,13 +819,27 @@ DiskTx:
 
 		.longa	off
 DiskRx:
-		lda	#1<<4
 		repeat
-		 bit	UIFR
-		until 	ne
-		lda	ARTD2
-		rts
-		rts
+		 pha			; Save the timeout count
+		 lda 	#1<<0		; Clear timer0 interrupt flag
+		 trb	TIFR
+		 repeat
+		  lda	#1<<4		; Has some data arrived?
+		  bit	UIFR
+		  if ne
+		   pla			; Yes, drop the timeout count
+		   lda	ARTD2		; Fetch the serial data
+		   clc			; Indicate data read
+		   rts			; Done.
+		  endif
+		  lda	#1<<0		; Has T0 rolled over?
+		  bit	TIFR
+		 until ne
+		 pla
+		 dec 	a
+		until 	eq
+		sec			; Indicate timeout
+		rts			; Done.
 		
 ;===============================================================================
 ;-------------------------------------------------------------------------------

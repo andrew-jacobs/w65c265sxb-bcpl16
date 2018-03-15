@@ -6,4 +6,4 @@ Sections:
 
 .page0           : 00000000 - 0000000F in bcpl.obj
 .bss             : 00000200 - 000002FF in bcpl.obj
-.code            : 00000400 - 00000766 in bcpl.obj
+.code            : 00000400 - 0000078F in bcpl.obj
