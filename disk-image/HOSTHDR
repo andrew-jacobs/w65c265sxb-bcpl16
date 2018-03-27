@@ -1,0 +1,11 @@
+//
+//
+//
+
+
+GLOBAL $(
+	TICKS:99;	RDHOST:100;	WRHOST:101
+	DELAY:103
+$)
+
+
