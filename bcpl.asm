@@ -81,6 +81,8 @@ SET_FILE_NAME	.equ	$aa		; FIX
 
 		.page0
 		.org	$00
+		
+TICK		.space	2
 
 ACCA		.space	2
 ACCB		.space	2
@@ -147,6 +149,7 @@ RESET:
 		native				; Go 16-bit
 		long_i				; .. with long X/Y
 		
+		stz	TICK
 		jsr	NewLine
 		ldx	#BOOT_STRING
 		jsr	Print
@@ -722,17 +725,19 @@ Function21:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; FINISH
 
 Function22:
 		bra	$		; FIX: Exit
 
 ;-------------------------------------------------------------------------------
+; SWITCHON
 
 Function23:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; FI = A-1
+; FI = A-1 SELECTINPUT
 
 Function24:
 		lda	ACCA
@@ -741,7 +746,7 @@ Function24:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; FO = A-1
+; FO = A-1 SELECTOUTPUT
 
 Function25:
 		lda	ACCA
@@ -750,25 +755,25 @@ Function25:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; Read a byte
+; Read a byte RDCH
 
 Function26:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; Write a byte
+; Write a byte WRCH
 
 Function27:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; Open for read
+; Open for read FINDINPUT
 
 Function28:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; Open for write
+; Open for write FINDOUTPUT
 
 Function29:
 		jmp	Step
@@ -780,7 +785,7 @@ Function30:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; A = M[P]
+; A = M[P] LEVEL
 
 Function31:
 		ldx	P
@@ -793,7 +798,7 @@ Function31:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; P,C = A,B
+; P,C = A,B LONGJUMP
 
 Function32:
 		lda	ACCA
@@ -803,16 +808,19 @@ Function32:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; ENDREAD
 
 Function33:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; ENDWRITE
 
 Function34:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
+; APTOVEC
 
 Function35:
 		jmp	Step
@@ -863,7 +871,7 @@ Function37:
 		jmp	Step		; Done.
 
 ;-------------------------------------------------------------------------------
-; A = FI+1
+; A = FI+1 INPUT
 
 Function38:
 		lda	FI
@@ -872,7 +880,7 @@ Function38:
 		jmp	Step
 
 ;-------------------------------------------------------------------------------
-; A = FO+1
+; A = FO+1 OUTPUT
 
 Function39:
 		lda	FO
@@ -880,6 +888,9 @@ Function39:
 		sta	ACCA
 		jmp	Step
 
+; 40 UNRDCH
+; 41 REWIND
+		
 ;===============================================================================
 ; CH376S Module Interface
 ;-------------------------------------------------------------------------------
